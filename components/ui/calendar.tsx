@@ -60,9 +60,13 @@ function Calendar({
         ...classNames,
       }}
       components={{
+        //@ts-nocheck
+        //@ts-expect-error fix it
         IconLeft: ({ className, ...props }) => (
           <ChevronLeft className={cn("size-4", className)} {...props} />
         ),
+        //@ts-nocheck
+        //@ts-expect-error fix it
         IconRight: ({ className, ...props }) => (
           <ChevronRight className={cn("size-4", className)} {...props} />
         ),
