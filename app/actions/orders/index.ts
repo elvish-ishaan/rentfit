@@ -24,9 +24,16 @@ export const fetchOrders = async () => {
             }
         })
         return {
-            success: true,
-            orders: user?.orders
-        }
+  success: true,
+  orders: (user?.orders ?? []).map((order) => ({
+    ...order,
+    rentFrom: order.rentFrom.toISOString(),
+    rentTo: order.rentTo.toISOString(),
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+  })),
+};
+
         } catch (error) {
             console.log(error,'error in fetching orders from db')
         }
