@@ -7,7 +7,7 @@ import Script from "next/script";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { fetchProductWithId } from "@/app/actions/products";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Declare Razorpay globally
 declare global {
@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   });     
   const {data: session} = useSession();
   const [product, setProduct] = useState<Product | null>(null);
+  const router = useRouter()
 
   useEffect(()=>{
     //call the action
