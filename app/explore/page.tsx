@@ -6,31 +6,28 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import denimJacket from '@/app/assets/denimJacket.jpg'
+import blueJeans from '@/app/assets/blueJeans.jpg'
+import pants from '@/app/assets/pants.jpg'
 
 const outfits = [
   {
     id: 1,
-    name: "Elegant Evening Dress",
-    price: 799,
-    image: "/images/dress1.jpg",
+    name: "Black Denim Jacket",
+    price: 49,
+    image: denimJacket,
   },
   {
     id: 2,
-    name: "Casual Summer Look",
-    price: 499,
-    image: "/images/dress2.jpg",
+    name: "Cool Blue Jeans",
+    price: 49,
+    image: blueJeans,
   },
   {
     id: 3,
-    name: "Formal Suit Set",
-    price: 999,
-    image: "/images/dress3.jpg",
-  },
-  {
-    id: 4,
-    name: "Street Style Combo",
-    price: 599,
-    image: "/images/dress4.jpg",
+    name: "Air Pants",
+    price: 49,
+    image: pants,
   },
 ];
 

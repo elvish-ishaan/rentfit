@@ -7,6 +7,8 @@ import { Menu } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import logo from '@/app/assets/logo.webp'
 
 export default function Navbar() {
 
@@ -20,7 +22,10 @@ export default function Navbar() {
   
   return (
     <header className="w-full bg-white shadow-md px-6 py-4 flex items-center justify-between">
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900">rentfit</h1>
+      {/* <h1 className="text-2xl font-bold tracking-tight text-gray-900">rentfit</h1> */}
+      <div className=" rounded-md">
+        <Image src={logo} alt="logo" width={50} height={50} />
+      </div>
 
       <nav className="hidden md:flex space-x-6 items-center">
         <Link href="/" className="text-gray-700 hover:text-black transition">Home</Link>
