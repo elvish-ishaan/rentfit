@@ -90,10 +90,14 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            if (session?.user && token) {
-                session.user.email = token.email as string;
-                session.user.name = token.name as string;
-                session.user.id = token.id as string;
+            if (session?.user) {
+                // Explicitly type the session user to include id
+                session.user = {
+                    ...session.user,
+                    id: token.id as string,
+                    email: token.email as string,
+                    name: token.name as string,
+                };
             }
             return session;
         },

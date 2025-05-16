@@ -23,6 +23,7 @@ export const fetchOrders = async () => {
                 orders: true
             }
         })
+        console.log(user?.orders,'getting orders')
         return {
   success: true,
   orders: (user?.orders ?? []).map((order) => ({

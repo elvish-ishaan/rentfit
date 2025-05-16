@@ -1,25 +1,69 @@
+"use server"
+
+import { prisma } from "@/prisma/prismaClient";
+import { getServerSession } from "next-auth";
+
 export const fetchProductWithId = async (id: string) => {
  try {
-    console.log()
- } catch (error) {
-    console.log(error,'error in fetching product with id from db')
+  //fetch product from db
+  const product = await prisma.product.findUnique({
+    where: {
+      id: id
     }
-
-    //copy db res
-    const product = {
-        id: "1",
-        name: "Elegant Evening Dress",
-        price: 799,
-        image: "/images/dress1.jpg",
-        description: "A glamorous dress perfect for formal evenings, with a flowing silhouette and premium fabric.",
-        reviews: [
-          { user: "Aanya", rating: 5, comment: "Loved it! Looked amazing for my event." },
-          { user: "Neha", rating: 4, comment: "Good quality, worth the rent." },
-        ],
-      };
+  })
+  if(!product){
     return {
-        success: true,
-        product: product
+      success: false,
+      message: 'No product found'
+    }
+  }
+  return {
+    success: true,
+    product: product
+  }
+ } catch (error) {
+  console.log(error,'error in fetching product with id from db')
+  return {
+    success: false,
+    message: 'Internal server error'
+  }
+ }
+}
+
+export const fetchAllProducts = async () => {
+    try {
+        const session = await getServerSession()
+
+        if(!session?.user.email){
+            return {
+                success: false,
+                message: 'user unauthenticated'
+            }
+        }
+        //fetching all products from db
+        try {
+            const products = await prisma.product.findMany()
+            console.log(products,'gettngf all prod')
+            if(!products ){
+                return {
+                    success: false,
+                    message: 'No products found'
+                }
+            }
+            return {
+                success: true,
+                products   
+            };
+
+        } catch (error) {
+            console.log(error,'error in fetching products from db')
+        }
+    } catch (error) {
+        console.log(error,'error in fetching products')
+        return {
+            success: false,
+            message: 'Internal server error'
+        }
     }
 }
 

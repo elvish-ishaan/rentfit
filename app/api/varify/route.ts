@@ -40,9 +40,8 @@ export async function POST(request: NextRequest) {
  const session = await getServerSession()
 
  //add db call to update the user storage
- console.log(session?.user,'getting user id...........')
  try {
-     await prisma.order.create({
+    const createdorder = await prisma.order.create({
         data: {
             productId: order.notes?.productId as string || '',
             userId: order.notes?.userId as string || '',
@@ -59,6 +58,7 @@ export async function POST(request: NextRequest) {
             rentTo: order.notes?.rentTo as string
         }
     })
+    console.log(createdorder,'order created')
  } catch (error) {
     console.log(error, 'error in creating order at varification')
  }

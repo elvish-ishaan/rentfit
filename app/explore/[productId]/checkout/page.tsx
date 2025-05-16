@@ -11,11 +11,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 // Declare Razorpay globally
 declare global {
-    interface Window {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     Razorpay: any;
-    }
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay: any;
   }
+}
 
 export interface DeliveryDetails {
   name: string;
@@ -28,52 +28,113 @@ export interface DeliveryDetails {
   state: string;
 }
 
+// API Product interface to match the actual API response
+interface ApiProduct {
+  id: string;
+  name: string;
+  rentCost: number;
+  imageUrl: string;
+  description: string;
+  availableSizes: string[];
+  createdAt: Date;
+  userId: string;
+  updatedAt: Date;
+}
+
+// Product interface for component state
 interface Product {
   id: string;
   name: string;
-  price: number;
+  rentCost: number;
   image: string;
   description: string;
-  reviews: Review[];
-}
-
-interface Review {
-  user: string;
-  rating: number;
-  comment: string;
+  availableSizes: string[];
 }
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const rentFrom = searchParams.get('rentedFrom');
   const rentTo = searchParams.get('rentedTo');
+  const productId = searchParams.get('productId');
+  const selectedSize = searchParams.get('size');
 
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>({
     name: "",
     phone: "",
     altPhone: "",
-    pincode: "",
+    pincode: searchParams.get('pincode') || "",
     landmark: "",
     city: "",
     district: "",
     state: "",
-  });     
-  const {data: session} = useSession();
-  const [product, setProduct] = useState<Product | null>(null);
-  const router = useRouter()
+  });
 
-  useEffect(()=>{
+  const { data: session } = useSession();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
     //call the action
     async function fetchProduct() {
-      const res = await fetchProductWithId("1");
-      if(!res.success){
-        toast('error in fetching product')
-        return
+      if (!productId) {
+        toast('Product ID is missing');
+        router.push('/explore');
+        return;
       }
-      setProduct(res?.product || null)
+      
+      setIsLoading(true);
+      try {
+        const res = await fetchProductWithId(productId);
+        
+        if (!res?.success) {
+          toast('Error in fetching product');
+          return;
+        }
+        
+        if (res?.product) {
+          // Map API response to Product interface
+          setProduct({
+            id: res.product.id,
+            name: res.product.name,
+            rentCost: res.product.rentCost,
+            image: res.product.imageUrl, // Map imageUrl to image
+            description: res.product.description,
+            availableSizes: res.product.availableSizes || [],
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch product:", error);
+        toast('Error in fetching product');
+      } finally {
+        setIsLoading(false);
+      }
     }
-    fetchProduct()
-  },[])
+    
+    fetchProduct();
+  }, [productId, router]);
+
+  // Calculate rental period in days
+  const calculateRentalDays = (): number => {
+    if (!rentFrom || !rentTo) return 0;
+    
+    const startDate = new Date(rentFrom);
+    const endDate = new Date(rentTo);
+    
+    // Calculate the difference in milliseconds
+    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    // Convert to days
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  };
+
+  // Calculate total cost
+  const calculateTotalCost = (): number => {
+    if (!product) return 0;
+    const days = calculateRentalDays();
+    return product.rentCost * days;
+  };
 
   //creating order
   const createOrderId = async (deliveryDetails: DeliveryDetails, cost: number) => {
@@ -85,10 +146,11 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           amount: cost * 100,
-          notesData:{
+          notesData: {
             ...deliveryDetails,
             rentFrom,
             rentTo,
+            size: selectedSize,
             productId: product?.id,
             userId: session?.user?.id
           }
@@ -103,6 +165,7 @@ export default function CheckoutPage() {
       return data.orderId;
     } catch (error) {
       console.error("Error creating order:", error);
+      toast('Failed to create order');
       return null;
     }
   };
@@ -112,74 +175,164 @@ export default function CheckoutPage() {
       toast('Please fill in all required fields.');
       return;
     }
+
+    if (!product) {
+      toast('Product information is missing');
+      return;
+    }
+
+    if (!rentFrom || !rentTo) {
+      toast('Rental period is missing');
+      return;
+    }
+
+    if (!selectedSize) {
+      toast('Size selection is missing');
+      return;
+    }
+
     //process payment
     const processPayment = async (deliveryDetails: DeliveryDetails, amount: number) => {
       try {
-    const orderId = await createOrderId(deliveryDetails, amount);
-    if (!orderId || !window.Razorpay) return;
+        const orderId = await createOrderId(deliveryDetails, amount);
+        if (!orderId) {
+          toast('Failed to create order');
+          return;
+        }
+        
+        if (!window.Razorpay) {
+          toast('Payment gateway not loaded properly');
+          return;
+        }
 
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: amount * 100,
-      currency: "INR",
-      name: "RentFit",
-      description: "payment for rentfit",
-      order_id: orderId,
-      notes: {
-        deliveryDetails: deliveryDetails
-      },
-      handler: async (response: {
-        razorpay_payment_id: string,
-        razorpay_order_id:string,
-        razorpay_signature: string,
-      }) => {
-        const data = {
-          orderCreationId: orderId,
-          razorpayPaymentId: response.razorpay_payment_id,
-          razorpayOrderId: response.razorpay_order_id,
-          razorpaySignature: response.razorpay_signature,
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: amount * 100,
+          currency: "INR",
+          name: "RentFit",
+          description: `Rental payment for ${product.name} (${selectedSize})`,
+          order_id: orderId,
+          notes: {
+            deliveryDetails: JSON.stringify(deliveryDetails),
+            productId: product.id,
+            rentalPeriod: `${rentFrom} to ${rentTo}`,
+            size: selectedSize
+          },
+          handler: async (response: {
+            razorpay_payment_id: string,
+            razorpay_order_id: string,
+            razorpay_signature: string,
+          }) => {
+            const data = {
+              orderCreationId: orderId,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            };
+            
+            try {
+              const result = await fetch("/api/varify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+              });
+
+              const res = await result.json();
+              
+              if (res.isOk) {
+                toast('Payment successful');
+                router.push('/explore');
+              } else {
+                toast("Payment verification failed");
+              }
+            } catch (error) {
+              console.error("Payment verification error:", error);
+              toast("Payment verification failed");
+            }
+          },
+          prefill: { 
+            name: session?.user?.name || deliveryDetails.name, 
+            email: session?.user?.email || '',
+            contact: deliveryDetails.phone
+          },
+          theme: { color: "#000000" },
         };
-        const result = await fetch("/api/varify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+
+        const paymentObject = new window.Razorpay(options);
+        
+        paymentObject.on("payment.failed", (response: any) => {
+          toast(response.error.description || "Payment failed")
         });
-
-        const res = await result.json();
-         //show user taost for sucessful payment
-         if(res.isOk){
-          //update the user storage on client side also
-          toast('payment successfull')
-          router.push('/explore')   
-         }else{
-          toast("payment failed")
-         }
-      },
-      prefill: { name: session?.user?.name, email: session?.user?.email },
-      theme: { color: "#000000" },
-    };
-
-    const paymentObject = new window.Razorpay(options);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    paymentObject.on("payment.failed", (response: any) => {
-     toast(response.error.description)
-    });
-    paymentObject.open();
+        
+        paymentObject.open();
       } catch (error) {
         console.error("Payment error:", error);
+        toast("Payment processing failed");
       }
     };
 
-    //calling payment function
-    if(!product){
-      return
+    // Calculate total cost based on rental days
+    const totalCost = calculateTotalCost();
+    
+    if (totalCost <= 0) {
+      toast('Invalid rental cost');
+      return;
     }
-    processPayment(deliveryDetails, product?.price);
-
+    
+    // Call payment function with correct cost
+    processPayment(deliveryDetails, totalCost);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading checkout information...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <p className="mb-4">Product information not available.</p>
+        <Button onClick={() => router.push('/explore')}>Return to Explore</Button>
+      </div>
+    );
+  }
+
+  const rentalDays = calculateRentalDays();
+  const totalCost = calculateTotalCost();
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-12 min-h-screen bg-gray-50">
       <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+
+      {/* Order Summary */}
+      <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+        <h2 className="text-xl font-semibold mb-3">Order Summary</h2>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span>Product:</span>
+            <span className="font-medium">{product.name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Size:</span>
+            <span className="font-medium">{selectedSize}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Rental Period:</span>
+            <span className="font-medium">{rentalDays} days</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Daily Rate:</span>
+            <span className="font-medium">₹{product.rentCost}</span>
+          </div>
+          <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
+            <span>Total:</span>
+            <span>₹{totalCost}</span>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-6">
         <div>
@@ -223,7 +376,7 @@ export default function CheckoutPage() {
         </div>
 
         <Button className="w-full py-6 text-lg" onClick={handlePayment}>
-          Pay & Confirm Rental
+          Pay ₹{totalCost} & Confirm Rental
         </Button>
       </div>
       <Script

@@ -138,12 +138,12 @@ function LoginPageContent() {
               onClick={handleGoogleSignIn}
             >
               {loading ? (
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Image src={""} width={20} height={20} alt="google" />
-              )}{' '}
-              Google
-            </Button>
+  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+) : (
+  "" // Render nothing when not loading
+)}{' '}
+Google
+</Button>
           </CardContent>
           <CardFooter>
             <p className="px-8 text-center text-sm text-muted-foreground">
